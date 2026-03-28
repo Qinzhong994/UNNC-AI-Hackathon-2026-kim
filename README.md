@@ -61,6 +61,6 @@ http://localhost:5000
 - **Deployment**: Local Flask Server (for hackathon demonstration)
 
 ## Author
-UNNC AI Hackathon Team  
+UNNC AI Hackathon Team--kim    
 Submitted for UNNC 30H AI Hackathon  
 Powered by Minimax M2.7 API
