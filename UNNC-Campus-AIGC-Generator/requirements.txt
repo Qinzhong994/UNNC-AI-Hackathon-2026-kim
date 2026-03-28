@@ -1,0 +1,6 @@
+# 更新 requirements.txt
+Flask==3.0.0
+Flask-CORS==4.0.0
+requests==2.31.0
+python-dotenv==1.0.0
+gunicorn==21.2.0  # 生产环境服务器

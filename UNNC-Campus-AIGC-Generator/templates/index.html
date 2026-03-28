@@ -1,0 +1,1386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UNNC Campus AIGC Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            scroll-behavior: smooth;
+        }
+        
+        /* Draggable container styles */
+        .draggable-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .draggable-container {
+            position: relative;
+            transition: transform 0.3s ease-out;
+            cursor: grab;
+            touch-action: none;
+        }
+        
+        .draggable-container.dragging {
+            cursor: grabbing;
+            transition: none;
+            user-select: none;
+        }
+        
+        .draggable-container.dragging::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(102, 126, 234, 0.1);
+            pointer-events: none;
+            border-radius: inherit;
+        }
+        
+        .draggable-container.dragging::after {
+            content: '↕';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            color: rgba(102, 126, 234, 0.5);
+            pointer-events: none;
+            opacity: 0;
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+        
+        /* Background decorations */
+        .bg-decoration {
+            position: fixed;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        .bg-circle {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        .bg-circle:nth-child(1) {
+            width: 300px;
+            height: 300px;
+            top: -100px;
+            left: -100px;
+            animation-delay: 0s;
+        }
+        
+        .bg-circle:nth-child(2) {
+            width: 200px;
+            height: 200px;
+            top: 50%;
+            right: -50px;
+            animation-delay: 2s;
+        }
+        
+        .bg-circle:nth-child(3) {
+            width: 250px;
+            height: 250px;
+            bottom: -100px;
+            left: 20%;
+            animation-delay: 4s;
+        }
+        
+        .bg-circle:nth-child(4) {
+            width: 150px;
+            height: 150px;
+            top: 30%;
+            left: 10%;
+            animation-delay: 1s;
+        }
+        
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0) rotate(0deg);
+            }
+            50% {
+                transform: translateY(-20px) rotate(5deg);
+            }
+        }
+        
+        /* Decorative lines */
+        .bg-line {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.1);
+            height: 2px;
+            width: 100px;
+            transform: rotate(-45deg);
+        }
+        
+        .bg-line:nth-child(1) {
+            top: 20%;
+            right: 10%;
+            width: 80px;
+        }
+        
+        .bg-line:nth-child(2) {
+            bottom: 30%;
+            left: 5%;
+            width: 120px;
+        }
+        
+        /* Decorative dots */
+        .bg-dots {
+            position: absolute;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+        }
+        
+        .bg-dot {
+            width: 6px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 50%;
+        }
+        
+        .bg-dots:nth-child(1) {
+            top: 15%;
+            right: 15%;
+        }
+        
+        .bg-dots:nth-child(2) {
+            bottom: 20%;
+            left: 10%;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 700px;
+            width: 100%;
+            padding: 30px;
+            animation: slideIn 0.5s ease-out;
+            position: relative;
+            z-index: 1;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+        
+        .container.expanded {
+            max-height: 80vh;
+            padding: 30px;
+        }
+        
+        .container.compact {
+            max-height: 90vh;
+            padding: 25px;
+        }
+        
+        /* Container decorations */
+        .container::before {
+            content: '';
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 2px;
+        }
+        
+        .container::after {
+            content: '';
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 2px;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 25px;
+            font-size: 24px;
+            font-weight: 700;
+            position: relative;
+        }
+        
+        /* Title decorations */
+        h1::before {
+            content: '✨';
+            position: absolute;
+            left: -20px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 18px;
+            animation: sparkle 2s ease-in-out infinite;
+        }
+        
+        h1::after {
+            content: '✨';
+            position: absolute;
+            right: -20px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 18px;
+            animation: sparkle 2s ease-in-out infinite 1s;
+        }
+        
+        @keyframes sparkle {
+            0%, 100% {
+                opacity: 1;
+                transform: translateY(-50%) scale(1);
+            }
+            50% {
+                opacity: 0.5;
+                transform: translateY(-50%) scale(1.2);
+            }
+        }
+        
+        .input-group {
+            margin-top: 20px;
+            margin-bottom: 15px;
+        }
+        
+        .input-container {
+            display: flex;
+            gap: 10px;
+            align-items: stretch;
+        }
+        
+        .input-container input {
+            flex: 1;
+            padding: 12px;
+            font-size: 14px;
+        }
+        
+        .input-container button {
+            flex: 0 0 auto;
+            width: 150px;
+            min-width: 150px;
+            padding: 12px;
+            font-size: 14px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+        }
+        
+        input[type="text"] {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .conversation-container {
+            margin-top: 15px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+            display: none;
+            animation: fadeIn 0.5s ease;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+            scroll-behavior: smooth;
+            position: relative;
+            transition: max-height 0.3s ease, min-height 0.3s ease;
+        }
+        
+        .conversation-container.expanded {
+            max-height: 500px;
+            min-height: 250px;
+        }
+        
+        .conversation-container.compact {
+            max-height: 350px;
+            min-height: 150px;
+        }
+        
+        /* Scroll to top button */
+        .scroll-top-btn {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+        
+        .scroll-top-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
+        }
+        
+        .scroll-top-btn.show {
+            display: flex;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .conversation-container.show {
+            display: block;
+        }
+        
+        /* Scrollbar styles */
+        .conversation-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .conversation-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        
+        .conversation-container::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 4px;
+        }
+        
+        .conversation-container::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        }
+        
+        /* Global scrollbar styles */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 5px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            padding: 15px;
+            border-radius: 18px;
+            max-width: 75%;
+            position: relative;
+            animation: messageSlide 0.3s ease-out;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+        
+        @keyframes messageSlide {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .user-message {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+            margin-left: auto;
+        }
+        
+        .assistant-message {
+            background: linear-gradient(135deg, #f8f9ff 0%, #e8f0fe 100%);
+            border: 1px solid #e0e7ff;
+            align-self: flex-start;
+            border-bottom-right-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .assistant-message::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .message-content {
+            line-height: 1.5;
+            white-space: pre-wrap;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+        
+        .user-message .message-content {
+            color: white;
+        }
+        
+        .assistant-message .message-content {
+            color: #333;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+        }
+        
+        /* 为AI消息添加特殊标记 */
+        .assistant-message::after {
+            content: '🤖 AI Generated';
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            font-size: 10px;
+            color: #667eea;
+            opacity: 0.7;
+            font-weight: 500;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+        
+        .message-role {
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            opacity: 0.8;
+        }
+        
+        .user-message .message-role {
+            color: rgba(255, 255, 255, 0.8);
+            text-align: right;
+        }
+        
+        .assistant-message .message-role {
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .assistant-message .message-role::before {
+            content: '🤖';
+            font-size: 14px;
+        }
+        
+        .message-time {
+            font-size: 9px;
+            opacity: 0.6;
+            text-align: right;
+            margin-top: 4px;
+        }
+        
+        .user-message .message-time {
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .assistant-message .message-time {
+            color: #999;
+        }
+        
+        .message-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 8px;
+            gap: 6px;
+            padding-top: 6px;
+            border-top: 1px solid rgba(102, 126, 234, 0.1);
+        }
+        
+        .message-action-btn {
+            background: none;
+            border: none;
+            color: inherit;
+            font-size: 11px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 12px;
+            opacity: 0.7;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+        
+        .message-action-btn:hover {
+            opacity: 1;
+            transform: translateY(-1px);
+        }
+        
+        .assistant-message .message-action-btn {
+            color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+        }
+        
+        .assistant-message .message-action-btn:hover {
+            background: rgba(102, 126, 234, 0.15);
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            color: #667eea;
+            font-weight: 600;
+            margin-top: 20px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0% {
+                opacity: 0.6;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0.6;
+            }
+        }
+        
+        .loading.show {
+            display: block;
+        }
+        
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+            animation: shake 0.5s ease;
+            /* 新增：限制错误信息长度，避免溢出 */
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        @keyframes shake {
+            0%, 100% {
+                transform: translateX(0);
+            }
+            25% {
+                transform: translateX(-5px);
+            }
+            75% {
+                transform: translateX(5px);
+            }
+        }
+        
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+        }
+        
+        .error.show {
+            display: block;
+        }
+        
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        /* Drag hint styles */
+        .drag-hint {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            padding: 10px 20px;
+            border-radius: 20px;
+            color: white;
+            font-size: 14px;
+            pointer-events: none;
+            z-index: 100;
+            opacity: 0.8;
+            transition: opacity 0.3s ease;
+        }
+        
+        .drag-hint:hover {
+            opacity: 1;
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+                margin: 10px;
+            }
+            
+            h1 {
+                font-size: 22px;
+                margin-bottom: 20px;
+            }
+            
+            .input-container {
+                flex-direction: column;
+            }
+            
+            .input-container button {
+                width: 100%;
+                min-width: auto;
+            }
+            
+            input[type="text"], button {
+                padding: 12px;
+            }
+            
+            .message {
+                max-width: 90%;
+                padding: 12px;
+            }
+            
+            .conversation-container {
+                max-height: 350px;
+            }
+            
+            .message-actions {
+                flex-wrap: wrap;
+            }
+            
+            .message-action-btn {
+                font-size: 10px;
+                padding: 3px 6px;
+            }
+        }
+        
+        /* Desktop optimization */
+        @media (min-width: 1200px) {
+            .container {
+                max-width: 800px;
+                padding: 35px;
+            }
+            
+            h1 {
+                font-size: 28px;
+            }
+            
+            .message {
+                max-width: 70%;
+                padding: 18px;
+            }
+            
+            .conversation-container {
+                max-height: 500px;
+            }
+        }
+        
+        /* 加载动画优化 */
+        .loading {
+            display: none;
+            text-align: center;
+            color: #667eea;
+            font-weight: 600;
+            margin-top: 20px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        /* 输入框焦点效果增强 */
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            transform: translateY(-1px);
+        }
+        
+        /* 按钮加载状态 */
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Background decorations -->
+    <div class="bg-decoration">
+        <div class="bg-circle"></div>
+        <div class="bg-circle"></div>
+        <div class="bg-circle"></div>
+        <div class="bg-circle"></div>
+        <div class="bg-line"></div>
+        <div class="bg-line"></div>
+        <div class="bg-dots">
+            <div class="bg-dot"></div>
+            <div class="bg-dot"></div>
+            <div class="bg-dot"></div>
+            <div class="bg-dot"></div>
+            <div class="bg-dot"></div>
+        </div>
+        <div class="bg-dots">
+            <div class="bg-dot"></div>
+            <div class="bg-dot"></div>
+            <div class="bg-dot"></div>
+            <div class="bg-dot"></div>
+            <div class="bg-dot"></div>
+        </div>
+    </div>
+    
+    <div class="draggable-wrapper">
+        <div class="container draggable-container" id="draggableContainer">
+        <h1>🎓 UNNC Campus AIGC Generator</h1>
+        
+        <div class="loading" id="loading">
+            Generating content... Please wait...
+        </div>
+        
+        <div class="error" id="error"></div>
+        
+        <div class="conversation-container" id="conversationContainer">
+            <!-- 对话历史将在这里动态生成 -->
+            <button class="scroll-top-btn" id="scrollTopBtn">↑</button>
+        </div>
+        
+        <div class="input-group">
+            <label for="keyword">Enter Keywords:</label>
+            <div class="input-container">
+                <input type="text" id="keyword" placeholder="e.g., library, study, campus life, graduation">
+                <button id="generateBtn">Generate Campus Content</button>
+            </div>
+        </div>
+        
+        <div style="margin-top: 20px; display: flex; gap: 10px;">
+            <button id="resetBtn" style="flex: 1; background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); margin-top: 0; font-size: 14px; padding: 12px;">Reset Conversation</button>
+            <button id="copyBtn" style="flex: 1; background: linear-gradient(135deg, #28a745 0%, #20c997 100%); margin-top: 0; font-size: 14px; padding: 12px;">Copy Last Response</button>
+        </div>
+        
+        <div style="margin-top: 15px; font-size: 12px; color: #666; text-align: center; padding: 10px; background: #f8f9fa; border-radius: 8px;">
+            <span id="conversationStats">No messages yet</span>
+        </div>
+        
+        <div class="footer">
+            UNNC 30H AI Hackathon | Powered by Minimax AI
+        </div>
+        </div>
+    </div>
+    
+    <!-- Drag hint -->
+    <div class="drag-hint">
+        ↑ Drag to move interface ↑
+    </div>
+    
+    <script>
+        const generateBtn = document.getElementById('generateBtn');
+        const copyBtn = document.getElementById('copyBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const keywordInput = document.getElementById('keyword');
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        const conversationContainer = document.getElementById('conversationContainer');
+        
+        let conversation = [];
+        
+        generateBtn.addEventListener('click', async function() {
+            const keyword = keywordInput.value.trim();
+            
+            if (!keyword) {
+                showError('Please enter keywords');
+                return;
+            }
+            
+            hideError();
+            showLoading();
+            disableButton();
+            
+            try {
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        keyword: keyword,
+                        reset: false
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    conversation = data.conversation;
+                    updateConversationDisplay();
+                    keywordInput.value = ''; // Clear input field
+                    // Adjust container size after new content
+                    setTimeout(() => {
+                        adjustContainerSize();
+                    }, 300);
+                } else {
+                    showError(data.error || 'Failed to generate content');
+                }
+            } catch (err) {
+                showError('Network error. Please try again.');
+            } finally {
+                hideLoading();
+                enableButton();
+            }
+        });
+        
+        // Reset conversation
+        resetBtn.addEventListener('click', async function() {
+            if (conversation.length === 0) {
+                showError('No conversation to reset');
+                return;
+            }
+            
+            if (confirm('Are you sure you want to reset the conversation?')) {
+                try {
+                    const response = await fetch('/api/generate', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ 
+                            keyword: 'reset',
+                            reset: true
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        conversation = [];
+                        updateConversationDisplay();
+                        showSuccess('Conversation reset successfully!');
+                        // Adjust container size after reset
+                        setTimeout(() => {
+                            adjustContainerSize();
+                        }, 300);
+                    } else {
+                        showError(data.error || 'Failed to reset conversation');
+                    }
+                } catch (err) {
+                    showError('Network error. Please try again.');
+                }
+            }
+        });
+        
+        // Copy to clipboard function
+        copyBtn.addEventListener('click', function() {
+            if (conversation.length > 0) {
+                const lastMessage = conversation[conversation.length - 1];
+                if (lastMessage.role === 'assistant') {
+                    navigator.clipboard.writeText(lastMessage.content).then(() => {
+                        showSuccess('Content copied to clipboard!');
+                    }).catch(err => {
+                        showError('Failed to copy content');
+                    });
+                } else {
+                    showError('No assistant response to copy');
+                }
+            } else {
+                showError('No conversation to copy');
+            }
+        });
+        
+        function showLoading() {
+            loading.classList.add('show');
+        }
+        
+        function hideLoading() {
+            loading.classList.remove('show');
+        }
+        
+        function showError(message) {
+            error.textContent = message;
+            error.classList.add('show');
+            setTimeout(() => {
+                hideError();
+            }, 3000); // 3秒后自动隐藏错误信息
+        }
+        
+        // 添加成功提示
+        function showSuccess(message) {
+            const successDiv = document.createElement('div');
+            successDiv.className = 'error show';
+            successDiv.style.background = 'linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%)';
+            successDiv.style.color = '#155724';
+            successDiv.style.borderLeft = '4px solid #28a745';
+            successDiv.style.animation = 'slideIn 0.3s ease-out';
+            successDiv.textContent = message;
+            
+            document.querySelector('.container').insertBefore(successDiv, conversationContainer);
+            
+            setTimeout(() => {
+                successDiv.style.animation = 'fadeOut 0.3s ease-out';
+                setTimeout(() => {
+                    successDiv.remove();
+                }, 300);
+            }, 3000);
+        }
+        
+        function hideError() {
+            error.classList.remove('show');
+        }
+        
+        function updateConversationDisplay() {
+            if (conversation.length === 0) {
+                conversationContainer.classList.remove('show');
+                document.getElementById('conversationStats').textContent = 'No messages yet';
+                document.getElementById('scrollTopBtn').classList.remove('show');
+                // Reset container size
+                adjustContainerSize();
+                return;
+            }
+            
+            conversationContainer.classList.add('show');
+            conversationContainer.innerHTML = '';
+            
+            // Adjust container size when messages are added
+            setTimeout(() => {
+                adjustContainerSize();
+            }, 100);
+            
+            conversation.forEach((message, index) => {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${message.role === 'user' ? 'user-message' : 'assistant-message'}`;
+                
+                const roleDiv = document.createElement('div');
+                roleDiv.className = 'message-role';
+                roleDiv.textContent = message.role === 'user' ? 'You' : 'AI Assistant';
+                
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'message-content';
+                // 清理和格式化 AI 回复的文本
+                let cleanedContent = message.content;
+                if (message.role === 'assistant') {
+                    cleanedContent = cleanAssistantResponse(message.content);
+                }
+                contentDiv.textContent = cleanedContent;
+                
+                const timeDiv = document.createElement('div');
+                timeDiv.className = 'message-time';
+                timeDiv.textContent = new Date().toLocaleTimeString();
+                
+                messageDiv.appendChild(roleDiv);
+                messageDiv.appendChild(contentDiv);
+                messageDiv.appendChild(timeDiv);
+                
+                // Add action buttons for assistant messages
+                if (message.role === 'assistant') {
+                    const actionsDiv = document.createElement('div');
+                    actionsDiv.className = 'message-actions';
+                    
+                    // Copy button
+                    const copyBtn = document.createElement('button');
+                    copyBtn.className = 'message-action-btn';
+                    copyBtn.innerHTML = '<span>📋</span> Copy';
+                    copyBtn.onclick = function() {
+                        navigator.clipboard.writeText(message.content).then(() => {
+                            showSuccess('Content copied to clipboard!');
+                        }).catch(err => {
+                            showError('Failed to copy content');
+                        });
+                    };
+                    
+                    // Like button
+                    const likeBtn = document.createElement('button');
+                    likeBtn.className = 'message-action-btn';
+                    likeBtn.innerHTML = '<span>👍</span> Like';
+                    likeBtn.onclick = function() {
+                        showSuccess('Thank you for your feedback!');
+                    };
+                    
+                    // Regenerate button
+                    const regenerateBtn = document.createElement('button');
+                    regenerateBtn.className = 'message-action-btn';
+                    regenerateBtn.innerHTML = '<span>🔄</span> Regen';
+                    regenerateBtn.onclick = function() {
+                        const lastUserMessage = conversation.filter(msg => msg.role === 'user').pop();
+                        if (lastUserMessage) {
+                            keywordInput.value = lastUserMessage.content;
+                            generateBtn.click();
+                        }
+                    };
+                    
+                    actionsDiv.appendChild(copyBtn);
+                    actionsDiv.appendChild(likeBtn);
+                    actionsDiv.appendChild(regenerateBtn);
+                    messageDiv.appendChild(actionsDiv);
+                }
+                
+                conversationContainer.appendChild(messageDiv);
+                
+                // 添加消息间的分隔线
+                if (index < conversation.length - 1) {
+                    const divider = document.createElement('div');
+                    divider.style.height = '12px';
+                    conversationContainer.appendChild(divider);
+                }
+            });
+            
+            // 更新对话统计信息
+            const userMessages = conversation.filter(msg => msg.role === 'user').length;
+            const assistantMessages = conversation.filter(msg => msg.role === 'assistant').length;
+            document.getElementById('conversationStats').textContent = 
+                `Messages: ${conversation.length} (You: ${userMessages}, AI: ${assistantMessages})`;
+            
+            // 滚动到底部
+            setTimeout(() => {
+                conversationContainer.scrollTop = conversationContainer.scrollHeight;
+            }, 100);
+            
+            // Adjust container size after content is rendered
+            setTimeout(() => {
+                adjustContainerSize();
+            }, 200);
+        }
+        
+        // Scroll to top functionality
+        conversationContainer.addEventListener('scroll', function() {
+            const scrollTopBtn = document.getElementById('scrollTopBtn');
+            if (conversationContainer.scrollTop > 200) {
+                scrollTopBtn.classList.add('show');
+            } else {
+                scrollTopBtn.classList.remove('show');
+            }
+        });
+        
+        document.getElementById('scrollTopBtn').addEventListener('click', function() {
+            conversationContainer.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+        
+        function disableButton() {
+            generateBtn.disabled = true;
+            generateBtn.textContent = 'Generating...';
+        }
+        
+        function enableButton() {
+            generateBtn.disabled = false;
+            generateBtn.textContent = 'Generate Campus Content';
+        }
+        
+        // Clean AI assistant response text, remove redundant symbols
+        function cleanAssistantResponse(text) {
+            // Remove extra whitespace
+            let cleaned = text.trim();
+            
+            // Remove duplicate line breaks
+            cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+            
+            // Remove extra spaces
+            cleaned = cleaned.replace(/\s{3,}/g, ' ');
+            
+            // Remove special characters at the beginning and end
+            cleaned = cleaned.replace(/^[\s\p{P}\p{S}]+|[\s\p{P}\p{S}]+$/gu, '');
+            
+            // Remove redundant symbols and artifacts
+            cleaned = cleaned.replace(/[*_~`]+/g, ''); // Remove markdown symbols
+            cleaned = cleaned.replace(/[\[\](){}]+/g, ''); // Remove brackets
+            cleaned = cleaned.replace(/\|+/g, ''); // Remove pipes
+            cleaned = cleaned.replace(/\s*[,;:]{2,}\s*/g, ', '); // Fix duplicate punctuation
+            
+            // Fix common formatting issues
+            cleaned = cleaned.replace(/([.!?])\s*$/, '$1');
+            cleaned = cleaned.replace(/([.!?])([A-Z])/g, '$1 $2'); // Add space after punctuation
+            cleaned = cleaned.replace(/([,;:])([A-Z])/g, '$1 $2'); // Add space after commas/semicolons
+            
+            // Ensure sentence starts with capital letter
+            cleaned = cleaned.replace(/^\w/, match => match.toUpperCase());
+            
+            // Fix multiple consecutive sentences
+            cleaned = cleaned.replace(/([.!?])\s+([a-z])/g, (match, p1, p2) => p1 + ' ' + p2.toUpperCase());
+            
+            // Remove excessive punctuation
+            cleaned = cleaned.replace(/[.!?]{3,}/g, '!!!'); // Limit exclamation marks
+            cleaned = cleaned.replace(/\.{4,}/g, '...'); // Limit ellipsis
+            
+            return cleaned;
+        }
+        
+        keywordInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                hideError();
+                generateBtn.click();
+            }
+        });
+        
+        // ========== DRAG FUNCTIONALITY ==========
+        const draggableContainer = document.getElementById('draggableContainer');
+        let isDragging = false;
+        let dragStart = { y: 0, clientY: 0 };
+        let currentPosition = { y: 0 };
+        
+        // Mouse down handler
+        draggableContainer.addEventListener('mousedown', function(e) {
+            // Check if clicking on interactive elements
+            const target = e.target;
+            if (target.tagName === 'INPUT' || 
+                target.tagName === 'BUTTON' || 
+                target.tagName === 'TEXTAREA' ||
+                target.closest('button') || 
+                target.closest('input') ||
+                target.closest('.message-action-btn') ||
+                target.closest('.scroll-top-btn')) {
+                return;
+            }
+            
+            isDragging = true;
+            dragStart = {
+                y: currentPosition.y,
+                clientY: e.clientY
+            };
+            
+            draggableContainer.classList.add('dragging');
+            
+            // Prevent text selection
+            e.preventDefault();
+        });
+        
+        // Mouse move handler
+        document.addEventListener('mousemove', function(e) {
+            if (!isDragging) return;
+            
+            const deltaY = e.clientY - dragStart.clientY;
+            let newY = dragStart.y + deltaY;
+            
+            // Limit drag range to prevent interface from going out of viewport
+            const container = draggableContainer;
+            const viewportHeight = window.innerHeight;
+            const containerHeight = container.offsetHeight;
+            const minY = -(viewportHeight / 2 - containerHeight / 2) + 50;
+            const maxY = (viewportHeight / 2 - containerHeight / 2) - 50;
+            
+            newY = Math.max(minY, Math.min(maxY, newY));
+            
+            currentPosition.y = newY;
+            container.style.transform = `translateY(${newY}px)`;
+        });
+        
+        // Mouse up handler
+        document.addEventListener('mouseup', function() {
+            if (isDragging) {
+                isDragging = false;
+                draggableContainer.classList.remove('dragging');
+            }
+        });
+        
+        // Touch support for mobile devices
+        draggableContainer.addEventListener('touchstart', function(e) {
+            const target = e.target;
+            if (target.tagName === 'INPUT' || 
+                target.tagName === 'BUTTON' || 
+                target.tagName === 'TEXTAREA' ||
+                target.closest('button') || 
+                target.closest('input') ||
+                target.closest('.message-action-btn') ||
+                target.closest('.scroll-top-btn')) {
+                return;
+            }
+            
+            isDragging = true;
+            dragStart = {
+                y: currentPosition.y,
+                clientY: e.touches[0].clientY
+            };
+            
+            draggableContainer.classList.add('dragging');
+        });
+        
+        document.addEventListener('touchmove', function(e) {
+            if (!isDragging) return;
+            
+            const deltaY = e.touches[0].clientY - dragStart.clientY;
+            let newY = dragStart.y + deltaY;
+            
+            const container = draggableContainer;
+            const viewportHeight = window.innerHeight;
+            const containerHeight = container.offsetHeight;
+            const minY = -(viewportHeight / 2 - containerHeight / 2) + 50;
+            const maxY = (viewportHeight / 2 - containerHeight / 2) - 50;
+            
+            newY = Math.max(minY, Math.min(maxY, newY));
+            
+            currentPosition.y = newY;
+            container.style.transform = `translateY(${newY}px)`;
+        });
+        
+        document.addEventListener('touchend', function() {
+            if (isDragging) {
+                isDragging = false;
+                draggableContainer.classList.remove('dragging');
+            }
+        });
+        
+        // Window resize handler to reset position if needed
+        window.addEventListener('resize', function() {
+            const viewportHeight = window.innerHeight;
+            const containerHeight = draggableContainer.offsetHeight;
+            const minY = -(viewportHeight / 2 - containerHeight / 2) + 50;
+            const maxY = (viewportHeight / 2 - containerHeight / 2) - 50;
+            
+            if (currentPosition.y < minY || currentPosition.y > maxY) {
+                currentPosition.y = 0;
+                draggableContainer.style.transform = 'translateY(0px)';
+            }
+            
+            // Adjust container based on conversation content
+            adjustContainerSize();
+        });
+        
+        // Adjust container size based on conversation content
+        function adjustContainerSize() {
+            const container = document.querySelector('.container');
+            const convContainer = document.getElementById('conversationContainer');
+            
+            if (!container || !convContainer) return;
+            
+            const viewportHeight = window.innerHeight;
+            const hasMessages = conversation.length > 0;
+            
+            if (hasMessages) {
+                // Calculate optimal size based on viewport
+                if (viewportHeight < 700) {
+                    // Small screens
+                    container.classList.add('compact');
+                    container.classList.remove('expanded');
+                    convContainer.classList.add('compact');
+                    convContainer.classList.remove('expanded');
+                } else if (viewportHeight > 900) {
+                    // Large screens
+                    container.classList.add('expanded');
+                    container.classList.remove('compact');
+                    convContainer.classList.add('expanded');
+                    convContainer.classList.remove('compact');
+                } else {
+                    // Medium screens
+                    container.classList.remove('expanded', 'compact');
+                    convContainer.classList.remove('expanded', 'compact');
+                }
+            } else {
+                // No messages - reset to default
+                container.classList.remove('expanded', 'compact');
+                convContainer.classList.remove('expanded', 'compact');
+            }
+        }
+    </script>
+</body>
+</html>
